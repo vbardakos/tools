@@ -1,7 +1,27 @@
 import os
 import json
 
+<<<<<<< HEAD
 FNAME = '.path.json'
+=======
+### TO DO ###
+# Config Class
+# __init__:
+#   1 add(ignore) -> ignore : os.rename old '.path.json', '.conf.json'
+#   2 reset() -> rm '.conf.json', '.path.json'
+#   3 load() -> try json.load()
+# set:
+#   1 batch - Default 1
+#   2 steps - Default 0
+#   3 train - cannot run Configurator
+
+# Configurator Class - Config child
+# __init__:
+#   1 param : input_fn
+# write
+# 
+
+>>>>>>> ba3fbb87f37efb22798e58b49edbb348cb3536fc
 
 class Params(object):
 
@@ -85,6 +105,12 @@ class Params(object):
                 'size': None,
                 'x': {'shape': None, 'dtype': None},
                 'y': {'shape': None, 'dtype': None, 'class': None},
+<<<<<<< HEAD
             },
         }
         return conf
+=======
+                },
+            }
+        return conf
+>>>>>>> ba3fbb87f37efb22798e58b49edbb348cb3536fc

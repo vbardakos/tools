@@ -1,36 +1,40 @@
-class Reader(object):
+import tensorflow as tf
+from _conf_base import _Conf
 
-    def __init__(self,path=_set_path()):
-        self.path, self.dir = path, None
-        if self.path:
-            self.dir = self.path
-        if 'config.json' not in os.listdir('data/'):
-            raise FileExistsError("'config.json' Does Not Exist")
+class IO(_Conf):
 
+    def __init__(self,*args):
+        super().__init__()
+        if not self.pdir:
+            self.pdir = self._reader(self.name)
+        self.c_path = self.pdir + self.conf
+    
     def config(self):
-        if not hasattr(self,'conf'):
-            with open(self.path+'config.json') as f:
-                self.conf = json.load(f)
-        return self.conf
+        return self._reader(self.c_path)
 
-    def data(self,train=True):
-        if train:
-            name = '_train.tfrecord'
-        else:
-            name = '_test.tfrecord'
-        if not hasattr(self,'conf'):
-            self.conf = self.config()
-        
-        lst = list()
+    def path(self):
+        return self.c_path
+
+    def data(self, train=None):
+        c = self.config()
+        mapper = lambda x : tf.ensure_shape(tf.io.parse_tensor(x,out_type=d),s)
+        ds_lst = list()
         for f in ('x','y'):
-            shape = self.conf[f]['shape']
-            dtype = self.conf[f]['dtype']
-            dtype = tf.dtypes.as_dtype(dtype)
-            try:
-                n  = self.path + f + name
-                ds = tf.data.TFRecordDataset(n)
-                ds = ds.map(lambda x: tf.ensure_shape(tf.io.parse_tensor(x, dtype), shape))
-                lst.append(ds)
-            except:
-                lst.append(None)
-        return lst
+            s,d,n = self._val_extractor(train,f)
+            d  = tf.dtypes.as_dtype(d)
+            ds = tf.data.TFRecordDataset(f+n)
+            ds = ds.map(mapper)
+            ds_list.append(ds)
+        return ds_list
+        
+    def _val_extractor(self,train,v):
+        """ Extracts shape, dtype, name """
+        c = self.config()
+        if isinstance(train,type(None)):
+            train = c['meta']['train']
+        s = ['train' if train else 'test']
+        name = c[s]['name'] + '.tfrecord'
+        vals = [c[s][x][k] for k in ('shape','dtype')]
+        assert all(v != None for v in vals)
+        vals.append(name)
+        return vals
