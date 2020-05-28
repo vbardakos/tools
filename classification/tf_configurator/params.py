@@ -1,17 +1,17 @@
 import os
 import json
 
+FNAME = '.path.json'
 
 class Params(object):
 
     def __init__(self, path=None):
         self.conf = False
-
         if isinstance(path,str):
             if not path.endswith('/'):
                 path = path + '/'
-            if os.path.exists('.path.json'):
-                with open('.path.json') as f:
+            if os.path.exists(FNAME):
+                with open(FNAME) as f:
                     init = json.load(f)
 
                 if init != path:
@@ -23,12 +23,12 @@ class Params(object):
             else:
                 os.mkdir(path)
 
-            with open('.path.json','w') as f:
+            with open(FNAME,'w') as f:
                 json.dump(path,f)
         else:
             try:
                 # tries to get current path
-                with open('.path.json') as f:
+                with open(FNAME) as f:
                     path = json.load(f)
                     self.conf = True
             except FileNotFoundError:
@@ -80,18 +80,11 @@ class Params(object):
                 'size': None,
                 'x': {'shape': None, 'dtype': None},
                 'y': {'shape': None, 'dtype': None, 'class': None},
-                },
+            },
             'test' : {
                 'size': None,
                 'x': {'shape': None, 'dtype': None},
                 'y': {'shape': None, 'dtype': None, 'class': None},
-                },
-            }
+            },
+        }
         return conf
-
-    
-            
-
-    
-                
-
