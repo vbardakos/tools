@@ -1,15 +1,21 @@
+"""
+Import Utility Class for Config & data
+@vbar
+
+"""
 import tensorflow as tf
 from _base import _Funcs
 
 class IO(_Funcs):
     """
-    Methods()
-        config(self)
-            Returns `dict` Config.json
-        path(self)
-            Returns `str` path used
-        data(self,train=None)
-            Returns a list of Datasets
+    config(self)
+    Returns `dict` Config.json
+
+    path(self)
+    Returns `str` path used
+    
+    data(self,train=None)
+    Returns a list of Datasets
     """
 
     def __init__(self,*args):
@@ -19,17 +25,21 @@ class IO(_Funcs):
         self.c_path = self.pdir + self.conf
     
     def config(self):
-        """ config.json from c_path """
+        """ reads config.json from c_path """
         return self._reader(self.c_path)
 
     def path(self):
-        """ c_path """
+        """ returns Config path / c_path """
         return self.c_path
 
     def data(self, train=None):
         """
-        params
-            train (bool) : if not specified gets val from 'meta/data'
+        Read/Import datasets and returns
+        them as a list.
+
+        Params
+        train (bool)
+        if not specified gets val from 'meta/data'
         """
         mapper = lambda x : tf.ensure_shape(tf.io.parse_tensor(x,out_type=d),s)
         ds_lst = list()
