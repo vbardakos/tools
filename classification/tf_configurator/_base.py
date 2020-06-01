@@ -1,3 +1,11 @@
+"""
+Base classes for Configurator & IO
+@vbar
+
+TO DO
+    - Fix Utils and move it
+    - reassign methods
+"""
 import os
 import json
 
