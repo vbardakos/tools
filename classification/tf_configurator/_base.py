@@ -104,8 +104,7 @@ class _Conf(_Funcs):
                 [os.remove(c_dir+f) for f in os.listdir(c_dir)]
                 os.rmdir(c_dir)
             else:
-                pass
-                # [os.remove(c_dir+f) for f in os.listdir()]
+                [os.remove(f) for f in os.listdir() if f.endswith(('json','tfrecord'))]
         except FileNotFoundError:
             print('Reset: File/Directory Not Found')
 
