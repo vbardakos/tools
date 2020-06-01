@@ -2,6 +2,9 @@ import os
 import json
 
 class _Funcs(object):
+    """
+    Parent Utility class for IO & _Conf
+    """
 
     FNAME = '.path.json'
     CNAME = '.conf.json'
@@ -13,17 +16,20 @@ class _Funcs(object):
 
     @staticmethod
     def _reader(name):
+        """ json reader """
         with open(name) as f:
             file = json.load(f)
         return file
     
     @staticmethod
     def _writer(var,name):
+        """ json writer """
         with open(name,'w') as f:
             json.dump(var,f)
 
     @staticmethod
     def _change(name,split,rename=True):
+        """ name changer to old """
         new = name.split(split)
         new[-2] += '_old'
         new = split.join(new)
