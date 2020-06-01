@@ -1,3 +1,16 @@
+"""
+Confugurator in progress
+@vbar
+
+TO DO
+    - Improve Utilities
+    - Set _Conf here
+    - add flow control
+    - add Method add_data() likewise _Conf
+"""
+import tensorflow as tf
+from _base import _Conf
+
 class Configurator(Utilities):
 
     def __init__(self, inputs, train=True, unbatch=False):
@@ -25,30 +38,6 @@ class Configurator(Utilities):
         self.o = self.o.map(lambda x : tf.one_hot(x, self.cls))
         return self.o
 
-    def write_config(self):
-        conf = {
-            'train' :  {
-                'batch' : int(self.batch_size()),
-                'steps' : int(self.steps()),
-                'size'  : int(self.sample_size()),
-                },
-            'x' : {
-                'shape' : list(self.shape()),
-                'dtype' : str(self.dtype()),
-                },
-            'y' : {
-                'shape' : list(self.shape(True)),
-                'dtype' : str(self.dtype(True)),
-                'class' : int(self.classes()),
-                }   
-            }
-
-        with open(self.path+'config.json', 'w') as f:
-            json.dump(conf, f)
-
-    def name(self):
-        return name('x')
-
     def write_input(self):
         n = self.name('x')
         s = self.i.map(tf.io.serialize_tensor)
@@ -65,14 +54,3 @@ class Configurator(Utilities):
         self.write_config()
         self.write_input()
         self.write_output()
-
-    def reset_config(self):
-        try:
-            os.remove(self.path+'config.json')
-        except:
-            pass
-
-    def reset_data(self):
-        for f in os.listdir(self.path):
-            if f.endswith('.tfrecord'):
-                os.remove(self.path+f)
