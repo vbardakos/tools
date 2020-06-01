@@ -1,3 +1,8 @@
+"""
+Utilities in progress
+@vbar
+"""
+
 class Utilities(object):
 
     def __init__(self, features=None, labels=None, unbatch=False):
