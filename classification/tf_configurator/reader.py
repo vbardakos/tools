@@ -4,9 +4,9 @@ Import Utility Class for Config & data
 
 """
 import tensorflow as tf
-from _base import _Funcs
+from _base import _InOut
 
-class IO(_Funcs):
+class IO(_InOut):
     """
     config(self)
     Returns `dict` Config.json
@@ -20,15 +20,12 @@ class IO(_Funcs):
 
     def __init__(self,*args):
         super().__init__(*args)
-        if not self.pdir:
-            self.pdir = self._reader(self.name)
-        self.c_path = self.pdir + self.conf
     
     def config(self):
         """ reads config.json from c_path """
-        return self._reader(self.c_path)
+        return self.conf
 
-    def path(self):
+    def conf_path(self):
         """ returns Config path / c_path """
         return self.c_path
 
