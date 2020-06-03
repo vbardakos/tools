@@ -8,8 +8,9 @@ TO DO
 """
 import os
 import json
+import tensorflow as tf
 
-class _Funcs(object):
+class _InOut(object):
     """
     Parent Utility class for IO & _Conf
     """
@@ -17,13 +18,13 @@ class _Funcs(object):
     FNAME = '.path.json'
     CNAME = '.conf.json'
 
-    def __init__(self,path=None, path_name=FNAME, conf_name=CNAME):
-        self.name = path_name
-        if isinstance(path,type(None)):
-            self.pdir = self._reader(self.name)
-        else:
-            self.pdir = path
-        self.conf = conf_name
+    def __init__(self, path_name=FNAME, conf_name=CNAME):
+        try:
+            self.pdir = self._reader(path_name)
+            self.c_path = self.pdir + conf_name
+            self.conf = self._reader(self.c_path)
+        except Exception as e:
+            raise FileNotFoundError(e,' `config.json` path is not assigned')
 
     @staticmethod
     def _reader(name):
@@ -37,6 +38,25 @@ class _Funcs(object):
         """ json writer """
         with open(name,'w') as f:
             json.dump(var,f)
+
+
+class _ConfUtils(object):
+
+    def _load_conf(self):
+        """ load config """
+        if not os.path.exists(self.c_path):
+            self._writer(self._empty_conf(),self.c_path)
+            self.conf = self._reader(self.c_path)
+        return self.conf
+
+    def _fname(self,train,name=None):
+        """ data file name suffix """
+        if name:
+            self._xyname = name
+        elif train:
+            self._xyname = '_train'
+        else:
+            self._xyname = '_test'
 
     @staticmethod
     def _change(name,split,rename=True):
@@ -54,12 +74,12 @@ class _Funcs(object):
         conf = {
             'train': {
                 'name' : None, 'batch': None, 'steps': None, 'size' : None,
-                'x': {'shape': None, 'dtype': None},
+                'x': {'shape': None, 'dtype': None, 'class': None},
                 'y': {'shape': None, 'dtype': None, 'class': None},
             },
             'test' : {
                 'name': None, 'size': None,
-                'x': {'shape': None, 'dtype': None},
+                'x': {'shape': None, 'dtype': None, 'class': None},
                 'y': {'shape': None, 'dtype': None, 'class': None},
             },
             'meta': {'steps': None, 'train': None},
@@ -67,7 +87,7 @@ class _Funcs(object):
         return conf
 
 
-class _Conf(_Funcs):
+class _ConfBase(_ConfUtils, _InOut):
 
     def __init__(self,*args):
         super().__init__(*args)
@@ -89,7 +109,8 @@ class _Conf(_Funcs):
         cls._writer(path,cls.FNAME)
         if path:
             os.mkdir(path)
-        return cls(path)
+        cls._writer(cls._empty_conf(),path+cls.CNAME)
+        return cls()
 
     @classmethod
     def reset(cls,old_path=False):
@@ -134,13 +155,19 @@ class _Conf(_Funcs):
         self._conf_steps(conf)
         self._conf_train(conf)
 
-        self._writer(conf,self.pdir+self.conf)
+        self._writer(conf,self.c_path)
 
     def _conf_batch(self,conf):
         if hasattr(self,'batch'):
             conf['train']['batch'] = self.batch
 
     def _conf_steps(self,conf):
+        """
+        sets steps in config
+            if steps -> steps
+            else:    -> if has been set: meta = 0
+                        else:            meta = None
+        """
         auto = lambda : conf['train']['size']//conf['train']['batch']
         if hasattr(self,'steps'):
             conf['meta']['steps'] = self.steps
@@ -167,17 +194,98 @@ class _Conf(_Funcs):
         elif not isinstance(conf['meta']['train'],bool):
             raise ValueError("'train' param undefined")
 
-    def _load_conf(self):
-        """ load config """
-        if not os.path.exists(self.pdir+self.conf):
-            self._writer(self._empty_conf(),self.pdir+self.conf)
-        return self._reader(self.pdir+self.conf)
 
-    def _fname(self,train,name=None):
-        """ data file name suffix """
-        if name:
-            self._xyname = name
-        elif train:
-            self._xyname = '_train'
+class _ConfData(_InOut):
+
+    # def __init__(self, *args):
+    #     super().__init__()
+
+    @classmethod
+    def add_data(cls,data,train=None,*args):
+        super().__init__(cls)
+        if isinstance(data,(tuple,list)) and len(data) is 2:
+            assert all(isinstance(f,tf.data.Dataset) for f in data)
+            cls.i = data[0]
+            cls.o = data[1]
+        elif isinstance(data,tf.data.Dataset):
+            if isinstance(data.element_spec,tuple) and len(data.element_spec):
+                cls.i = data.map(lambda x,_ : x)
+                cls.o = data.map(lambda _,y : y)
         else:
-            self._xyname = '_test'
+            raise ValueError("add_data : Could not get the data")
+
+        if isinstance(train,type(None)):
+            train = cls.conf['meta']['train']
+        assert isinstance(train,bool)
+        cls.name = 'train' if train else 'test'
+        return cls()
+
+    def _data_shape(self,label=False,ignore=False):
+        """ gets the shape of features/labels """
+        dname  = self._dname(label)
+        shape = tf.TensorShape(self.conf[self.name][dname]['shape'])
+        if label and (not shape or ignore):
+            shape = self.o.element_spec.shape
+        elif not shape or ignore:
+            shape = self.i.element_spec.shape
+        self._shape = tuple(shape)
+        self.conf[self.name][dname]['shape'] = self._shape
+
+    def _data_dtype(self,label=False,ignore=False):
+        dname = self._dname(label)
+        dtype = self.conf[self.name][dname]['dtype']
+        if label and (not dtype or ignore):
+            self._dtype = self.o.element_spec.dtype
+        elif not dtype or ignore:
+            self._dtype = self.i.element_spec.dtype
+        else:
+            self._dtype = tf.dtypes.as_dtype(dtype)
+        self.conf[self.name][dname]['dtype'] = str(self._dtype).split("'")[1]
+        
+    def _data_class(self,label=False,ignore=False):
+        """ class number """
+        dname = self._dname(label)
+        clses = self.conf[self.name][dname]['class']
+        if not clses or ignore:
+            self._data_dtype(label)
+            self._data_shape(label)
+            mapper = lambda _,y : tf.maximum(_,y)
+            if self._shape:
+                self._clses = self._shape[0]
+            elif label:
+                self._clses = self.o.reduce(tf.constant(0,self._dtype),mapper).numpy() + 1
+            else:
+                self._clses = self.i.reduce(tf.constant(0,self._dtype),mapper).numpy() + 1
+    
+            self.conf[self.name][dname]['class'] = int(self._clses)
+
+    def _data_steps(self):
+        """ training steps with rounded observations/batch_size """
+        meta = self.conf['meta']['steps']
+        if isinstance(meta,str) or meta is 0:
+            batch = self.conf['train']['batch']
+            if not hasattr(self,'sample'):
+                self._data_size()
+            self.conf['meta']['steps']  = "Auto"
+            self.conf['train']['steps'] = int(self.sample//batch)
+
+    def _data_size(self, ignore=False):
+        """ data occurences """
+        self.sample = self.conf[self.name]['size']
+        if not self.sample or ignore: # None or ignore
+            self.sample = self.o.reduce(tf.constant(0), lambda x,_ : x+1).numpy()
+            self.conf[self.name]['size'] = int(self.sample)
+    
+    @staticmethod
+    def _dname(label):
+        return 'x' if not label else 'y'
+
+    def printer(self):
+        for l in (True,False):
+            self._data_class(l)
+            self._data_shape(l)
+            self._data_dtype(l)
+        self._data_size()
+        self._data_steps()
+        self._writer(self.conf,self.c_path)
+        return self.conf
