@@ -2,6 +2,8 @@
 Utilities in progress
 @vbar
 """
+import tensorflow as tf
+from _base import _ConfBase
 
 class Utilities(object):
 
