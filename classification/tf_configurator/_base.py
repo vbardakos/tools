@@ -49,15 +49,6 @@ class _ConfUtils(object):
             self.conf = self._reader(self.c_path)
         return self.conf
 
-    def _fname(self,train,name=None):
-        """ data file name suffix """
-        if name:
-            self._xyname = name
-        elif train:
-            self._xyname = '_train'
-        else:
-            self._xyname = '_test'
-
     @staticmethod
     def _change(name,split,rename=True):
         """ name changer to old """
@@ -133,14 +124,14 @@ class _ConfBase(_ConfUtils, _InOut):
         assert isinstance(batch,int)
         if batch < 1:
             batch = 1
-        self.batch = batch
+        self._batch = batch
         return self
 
     def add_steps(self,steps):
         assert isinstance(steps,int)
         if steps < 0:
             steps = 0
-        self.steps = steps
+        self._steps = steps
         return self
 
     def add_train(self, train):
@@ -148,18 +139,9 @@ class _ConfBase(_ConfUtils, _InOut):
         self.train = train
         return self
 
-    def set_config_params(self):
-        conf = self._load_conf()
-
-        self._conf_batch(conf)
-        self._conf_steps(conf)
-        self._conf_train(conf)
-
-        self._writer(conf,self.c_path)
-
     def _conf_batch(self,conf):
-        if hasattr(self,'batch'):
-            conf['train']['batch'] = self.batch
+        if hasattr(self,'_batch'):
+            conf['train']['batch'] = self._batch
 
     def _conf_steps(self,conf):
         """
@@ -169,39 +151,48 @@ class _ConfBase(_ConfUtils, _InOut):
                         else:            meta = None
         """
         auto = lambda : conf['train']['size']//conf['train']['batch']
-        if hasattr(self,'steps'):
-            conf['meta']['steps'] = self.steps
-            if self.steps:
-                conf['train']['steps'] = self.steps
+        if hasattr(self,'_steps'):
+            conf['meta']['steps'] = self._steps
+            if self._steps:
+                conf['train']['steps'] = self._steps
             else:
                 try:
                     conf['train']['steps'] = auto()
                     conf['meta']['steps']  = 'Auto'
                 except:
                     pass
-        elif hasattr(self,'batch') and isinstance(conf['meta']['steps'],str):
+        elif hasattr(self,'_batch') and isinstance(conf['meta']['steps'],str):
             conf['train']['steps'] = auto()
     
     def _conf_train(self,conf):
         if hasattr(self,'train'):
             conf['meta']['train'] = self.train
-            if not hasattr(self,'_xyname'):
-                self._fname(self.train)
-            if self.train:
-                conf['train']['name'] = self._xyname
-            else:
-                conf['test']['name']  = self._xyname
         elif not isinstance(conf['meta']['train'],bool):
             raise ValueError("'train' param undefined")
+
+    def _conf_names(self,conf,*names):
+        """ data file name suffix """
+        if names and len(names) is 2:
+            assert all(isinstance(i,str) for i in names)
+            train,test = names[0], names[1]
+        else:
+            train,test = '_train','_test'
+        conf['train']['name'] = train
+        conf['test']['name'] = test
+
+    def _conf_param(self):
+        conf = self._load_conf()
+        self._conf_batch(conf)
+        self._conf_steps(conf)
+        self._conf_train(conf)
+        self._conf_names(conf)
+        self._writer(conf,self.c_path)
 
 
 class _ConfData(_InOut):
 
-    # def __init__(self, *args):
-    #     super().__init__()
-
     @classmethod
-    def add_data(cls,data,train=None,*args):
+    def add_data(cls,data,train=None):
         super().__init__(cls)
         if isinstance(data,(tuple,list)) and len(data) is 2:
             assert all(isinstance(f,tf.data.Dataset) for f in data)
@@ -230,8 +221,10 @@ class _ConfData(_InOut):
             shape = self.i.element_spec.shape
         self._shape = tuple(shape)
         self.conf[self.name][dname]['shape'] = self._shape
+        return self
 
     def _data_dtype(self,label=False,ignore=False):
+        """ sets the dtype of features/labels """
         dname = self._dname(label)
         dtype = self.conf[self.name][dname]['dtype']
         if label and (not dtype or ignore):
@@ -241,12 +234,13 @@ class _ConfData(_InOut):
         else:
             self._dtype = tf.dtypes.as_dtype(dtype)
         self.conf[self.name][dname]['dtype'] = str(self._dtype).split("'")[1]
+        return self
         
     def _data_class(self,label=False,ignore=False):
         """ class number """
         dname = self._dname(label)
-        clses = self.conf[self.name][dname]['class']
-        if not clses or ignore:
+        self._clses = self.conf[self.name][dname]['class']
+        if not self._clses or ignore:
             self._data_dtype(label)
             self._data_shape(label)
             mapper = lambda _,y : tf.maximum(_,y)
@@ -258,6 +252,7 @@ class _ConfData(_InOut):
                 self._clses = self.i.reduce(tf.constant(0,self._dtype),mapper).numpy() + 1
     
             self.conf[self.name][dname]['class'] = int(self._clses)
+        return self
 
     def _data_steps(self):
         """ training steps with rounded observations/batch_size """
@@ -266,8 +261,9 @@ class _ConfData(_InOut):
             batch = self.conf['train']['batch']
             if not hasattr(self,'sample'):
                 self._data_size()
-            self.conf['meta']['steps']  = "Auto"
+            self.conf['meta']['steps'] = "Auto"
             self.conf['train']['steps'] = int(self.sample//batch)
+        return self
 
     def _data_size(self, ignore=False):
         """ data occurences """
@@ -275,17 +271,37 @@ class _ConfData(_InOut):
         if not self.sample or ignore: # None or ignore
             self.sample = self.o.reduce(tf.constant(0), lambda x,_ : x+1).numpy()
             self.conf[self.name]['size'] = int(self.sample)
+        return self
     
-    @staticmethod
-    def _dname(label):
-        return 'x' if not label else 'y'
+    def one_hot(self,label=False):
+        dname = self._dname(label)
+        self._clses = self.conf[self.name][dname]['class']
+        if isinstance(self._clses,type(None)):
+            self._data_class(label)
+        else:
+            self._shape = self.conf[self.name][dname]['shape']
+        if label and not self._shape:
+            self.o = self.o.map(lambda x : tf.one_hot(x, self._clses))
+        elif not self._shape:
+            self.i = self.i.map(lambda x : tf.one_hot(x, self._clses))
+        self._data_shape(label,ignore=True)
+        self._data_dtype(label,ignore=True)
+        self._writer(self.conf,self.c_path)
+        print(self.i.element_spec, self.o.element_spec)
 
-    def printer(self):
+    def _set_data(self,ignore):
         for l in (True,False):
-            self._data_class(l)
-            self._data_shape(l)
-            self._data_dtype(l)
-        self._data_size()
+            self._data_class(l,ignore)
+            self._data_shape(l,ignore)
+            self._data_dtype(l,ignore)
+        self._data_size(ignore)
         self._data_steps()
         self._writer(self.conf,self.c_path)
-        return self.conf
+
+    @staticmethod
+    def _tname(train):
+        return 'train' if train else 'test'
+
+    @staticmethod
+    def _dname(label):
+        return 'y' if label else 'x'
