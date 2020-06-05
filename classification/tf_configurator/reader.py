@@ -23,9 +23,19 @@ class IO(_InOut):
     
     def config(self):
         """ reads config.json from c_path """
-        return self.conf
+        c = self.conf
+        train = c['meta']['train']
+        tlist = ['train','test']
+        tlist = tlist if train else tlist.reverse()
+        try:
+            for t in tlist:
+                for v in ('x','y'):
+                    c[t][v]['dtype'] = tf.dtypes.as_dtype(c[t][v]['dtype'])
+        except:
+            pass
+        return c
 
-    def conf_path(self):
+    def config_path(self):
         """ returns Config path / c_path """
         return self.c_path
 
@@ -43,19 +53,18 @@ class IO(_InOut):
         for f in ('x','y'):
             s,d,n = self._val_extractor(train,f)
             d  = tf.dtypes.as_dtype(d)
-            ds = tf.data.TFRecordDataset(f+n)
+            ds = tf.data.TFRecordDataset(self.pdir+f+n)
             ds = ds.map(mapper)
             ds_lst.append(ds)
         return ds_lst
         
     def _val_extractor(self,train,v):
         """ Extracts shape, dtype, name """
-        c = self.config()
         if isinstance(train,type(None)):
-            train = c['meta']['train']
-        s = ['train' if train else 'test']
-        name = c[s]['name'] + '.tfrecord'
-        vals = [c[s][v][k] for k in ('shape','dtype')]
+            train = self.conf['meta']['train']
+        s = 'train' if train else 'test'
+        name = self.conf[s]['name'] + '.tfrecord'
+        vals = [self.conf[s][v][k] for k in ('shape','dtype')]
         assert all(v != None for v in vals)
         vals.append(name)
         return vals
