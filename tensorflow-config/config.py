@@ -1,10 +1,10 @@
 """
-Confugurator Class
+Confugurator/IO Class
 @vbar
 
 """
-import tensorflow as tf
-from _base_ import _ConfBase, _ConfData, _InOut
+import tensorflow as tf 
+from tools.tfconfig._base_ import _ConfBase, _ConfData, _InOut
 
 
 class Configurator(_ConfBase, _ConfData):
