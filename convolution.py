@@ -87,9 +87,11 @@ def convolution(image: np.ndarray, conv: np.ndarray, channels_last: bool = True,
             for c in range(color.ndim):
                 filtered[xi, yi, c] = min(max(int(color[c] + bias), 0), 255)
 
-    # revert if input had 2 dims
+    # input had 2 dims or channels first
     if double_dim:
         filtered = np.squeeze(filtered, axis=-1)
+    if not channels_last:
+        filtered = np.moveaxis(filtered, 2, 0)
 
     return filtered
 
