@@ -90,21 +90,19 @@ def label_to_path(path, regex: str, labels: (list, tuple) = None, to_path: str =
         to_path = ".."
 
     def move_to_label(f, l_path):
-        try:
+        if not os.path.exists(l_path):
             os.mkdir(l_path)
-            shutil.move(f, l_path)
-        except FileExistsError:
-            shutil.move(f, l_path)
+        shutil.move(f, l_path)
 
     for file in tqdm(os.listdir()):
         label = re.findall(regex, file)[0].lower()
         if labels:
             if label in labels:
-                move_to_label(file, f"{to_path}/{label}")
+                move_to_label(file, os.path.join(to_path, label))
             else:
                 unlabeled.append(file)
         else:
-            move_to_label(file, f"{to_path}/{label}")
+            move_to_label(file, os.path.join(to_path, label))
 
     if unlabeled:
         print('Warning : returns unlabeled files:', unlabeled, sep='\n')
