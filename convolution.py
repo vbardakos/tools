@@ -30,9 +30,8 @@ def convolution(image: np.ndarray, conv: np.ndarray, channels_last: bool = True,
                 brightness: float = 1., bias: float = 0.):
     """
     Given a filter matrix, it returns a convolution of an image.
-    Note :: The purpose of this function is to show in a simple way how convolution
-            are computed in a simple and comprehensive way. Thus, performance is
-            sacrificed for this purpose.
+    Note :: The purpose of this function is to show how convolutions are computed
+    in a simple and comprehensive way. Thus, performance is sacrificed for this purpose.
 
     :param image: numpy array of the image convolved
     :param conv: numpy array with the filter matrix.
