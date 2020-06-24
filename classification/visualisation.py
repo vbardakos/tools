@@ -40,7 +40,7 @@ class ClassSample(object):
         """
         dirs = np.char.array(dirs).flatten()
         if root_path:
-            args = np.char.add(root_path + os.path.sep, dirs)
+            dirs = np.char.add(root_path + os.path.sep, dirs)
         # get sample
         files = np.empty(0)
         for path in dirs:
