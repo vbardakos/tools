@@ -6,7 +6,7 @@ import matplotlib.image as mimg
 
 class ClassSample(object):
     """
-    Creates, organises and plots a random sample of images per class.
+    Generates, organises and plots a random sample of images per class.
 
     :@class from_directories : input a series of image directories
     :@class from_images : input a series of images
